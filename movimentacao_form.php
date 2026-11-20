@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/includes/sessao.php';
 require_once __DIR__ . '/conexao.php';
 
 $erro = "";
@@ -7,14 +8,13 @@ $erro = "";
 $id_produto = (int) ($_GET["id_produto"] ?? 0);
 $tipo       = "ENTRADA";
 $quantidade = "";
-$id_user    = 0;
+$id_user    = (int) $_SESSION["user_id"];
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $id_produto = (int) ($_POST["id_produto"] ?? 0);
     $tipo       = $_POST["tipo"] ?? "";
     $quantidade = (int) ($_POST["quantidade"] ?? 0);
-    $id_user    = (int) ($_POST["id_user"] ?? 0);
 
     $st = $pdo->prepare("SELECT quantidade_estoque FROM produto WHERE id_produto = ?");
     $st->execute([$id_produto]);
@@ -35,25 +35,38 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (!$user) {
         $erro = "Usuário não encontrado!";
     } elseif ($tipo === "SAIDA" && $produto["quantidade_estoque"] < $quantidade) {
-        $erro = "Estoque insuficiente! Disponível: " . $produto["quantidade_estoque"] . ".";
+        $erro = "Saída não permitida: estoque insuficiente! Disponível: " . $produto["quantidade_estoque"] . ".";
     }
 
     if ($erro === "") {
-        $st = $pdo->prepare("INSERT INTO movimentacao (tipo, quantidade, id_produto, datetime_movimentacao, id_user) VALUES (?, ?, ?, NOW(), ?)");
-        $st->execute([$tipo, $quantidade, $id_produto, $id_user]);
+        try {
+            $pdo->beginTransaction();
 
-        // ENTRADA soma no estoque, SAIDA subtrai
-        $delta = $tipo === "ENTRADA" ? $quantidade : -$quantidade;
-        $st = $pdo->prepare("UPDATE produto SET quantidade_estoque = quantidade_estoque + ? WHERE id_produto = ?");
-        $st->execute([$delta, $id_produto]);
+            $delta = $tipo === "ENTRADA" ? $quantidade : -$quantidade;
+            $st = $pdo->prepare("UPDATE produto SET quantidade_estoque = quantidade_estoque + ? WHERE id_produto = ? AND quantidade_estoque + ? >= 0");
+            $st->execute([$delta, $id_produto, $delta]);
 
-        header("Location: movimentacoes.php?salvo=" . strtolower($tipo));
-        exit;
+            if ($st->rowCount() === 0) {
+                $pdo->rollBack();
+                $erro = "Saída não permitida: estoque insuficiente!";
+            } else {
+                $st = $pdo->prepare("INSERT INTO movimentacao (tipo, quantidade, id_produto, datetime_movimentacao, id_user) VALUES (?, ?, ?, NOW(), ?)");
+                $st->execute([$tipo, $quantidade, $id_produto, $id_user]);
+
+                $pdo->commit();
+                header("Location: movimentacoes.php?salvo=" . strtolower($tipo));
+                exit;
+            }
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 }
 
 $produtos = $pdo->query("SELECT id_produto, nome, quantidade_estoque FROM produto ORDER BY nome")->fetchAll();
-$usuarios = $pdo->query("SELECT id_user, nome FROM `user` ORDER BY nome")->fetchAll();
 
 require_once __DIR__ . '/includes/menu.php';
 ?>
@@ -97,12 +110,7 @@ require_once __DIR__ . '/includes/menu.php';
                     </div>
                     <div class="mb-6">
                         <label class="form-label">Usuário responsável *</label>
-                        <select name="id_user" class="form-input" required>
-                            <option value="">Selecione o usuário</option>
-                            <?php foreach ($usuarios as $u): ?>
-                                <option value="<?= $u["id_user"] ?>" <?= $u["id_user"] == $id_user ? "selected" : "" ?>><?= htmlspecialchars($u["nome"]) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" class="form-input bg-gray-100" value="<?= htmlspecialchars($_SESSION["user_nome"] ?? "") ?>" readonly>
                     </div>
 
                     <div class="flex gap-2">

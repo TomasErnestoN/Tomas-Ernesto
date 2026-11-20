@@ -31,10 +31,14 @@ $ativo = function ($prefixo) use ($pagina) {
     <aside class="w-56 bg-gray-900 min-h-screen flex flex-col flex-shrink-0">
         <div class="px-4 py-5 border-b border-gray-700"><p class="text-white font-extrabold text-base">📦 Estoque SAEP</p><p class="text-gray-500 text-xs">Painel Administrativo</p></div>
         <nav class="flex-1 p-3 space-y-1 pt-4">
+            <?php if (($_SESSION['user_tipo'] ?? '') === 'administrador'): ?>
+                <a href="registro.php"  class="nav-link <?= $ativo('registro') ?>"> Registrar</a>
+            <?php endif; ?>
             <a href="index.php"         class="nav-link <?= $ativo('index') ?>">📊 Dashboard</a>
             <a href="produtos.php"      class="nav-link <?= $ativo('produto') ?>">🧴 Produtos</a>
             <a href="estoque.php"       class="nav-link <?= $ativo('estoque') ?>">📋 Verificar Estoque</a>
             <a href="movimentacoes.php" class="nav-link <?= $ativo('movimentac') ?>">🔄 Movimentações</a>
             <a href="saidas.php"        class="nav-link <?= $ativo('saidas') ?>">📤 Saídas</a>
+            <a href="logout.php"        class="nav-link <?= $ativo('saidas') ?>">Logout</a>
         </nav>
     </aside>

@@ -1,2 +1,12 @@
 # Tomas-Ernesto
-Branch para o SAEP 2.0 
+Logins para entrar no sistema:
+
+
+
+Administrador
+admin@gmail.com
+111
+
+Operador
+operador@gmail.com
+111

@@ -1,10 +1,11 @@
 <?php
 session_start();
+require_once __DIR__ . '/includes/sessao.php';
 require_once __DIR__ . '/conexao.php';
 
 $st = $pdo->prepare("SELECT * FROM produto WHERE id_produto = :id");
 $st->execute(["id" => $_GET["id"] ?? 0]);
-$produto = $st->fetch();          // false se não encontrou
+$produto = $st->fetch();
 
 require_once __DIR__ . '/includes/menu.php';
 ?>
